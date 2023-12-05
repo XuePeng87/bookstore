@@ -24,10 +24,12 @@ onMounted(() => {
     id: 1,
     name: ''
   })
-  queryById('656ee18a77548c3097e837f2')
+  queryById('656ee18a77548c3097e837f2').then((r) => {
+    console.info(r.data)
+  })
   // create({ name: 'java' })
   // update('656ee5db77548c3097e837f6', { name: 'python' })
-  remove('656ee54f77548c3097e837f4')
+  // remove('656ee54f77548c3097e837f4')
 })
 
 const { t } = useI18n()

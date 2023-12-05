@@ -16,7 +16,7 @@ const config: AxiosConfig = {
    */
   baseUrl: {
     // 开发环境接口前缀
-    base: 'http://127.0.0.1:8000/',
+    base: '',
 
     // 打包开发环境接口前缀
     dev: '',
