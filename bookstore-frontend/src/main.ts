@@ -46,6 +46,15 @@ const setupAll = async () => {
   setupRouter(app)
 
   app.mount('#app')
+
+  app.config.globalProperties.$filters = {
+    boolToStr(value: boolean) {
+      return value ? '是' : '否'
+    },
+    currencyRMB(value: number) {
+      return '¥' + (value / 100).toFixed(2)
+    }
+  }
 }
 
 setupAll()
