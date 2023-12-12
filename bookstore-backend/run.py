@@ -38,7 +38,7 @@ def query():
         "code": 0,
         "success": True,
         "msg": "",
-        "data": dumps(books)
+        "data": json.loads(dumps(books))
     })
 
 
