@@ -1,3 +1,5 @@
+import datetime
+
 from flask import Flask, jsonify, request
 from flask_cors import cross_origin
 from flask_pymongo import PyMongo
@@ -5,6 +7,7 @@ from bson import ObjectId
 from bson.json_util import dumps
 import requests
 import json
+import time
 
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False  # 禁止中文转义
@@ -28,14 +31,14 @@ def query_by_isbn(isbn):
 def query():
     """根据条件查询图书"""
     request_args = request.args.to_dict()
-    print(request_args)
+    total = mongo.db.books.count_documents({})
     page = int(request_args['page'])
-    cursor = mongo.db.books.find().skip(page-1).limit(1)
+    cursor = mongo.db.books.find().skip(10 * (page-1)).limit(10).sort('createTime', -1)
     books = []
     for document in cursor:
         document['_id'] = str(document['_id'])
         books.append(document)
-    total = mongo.db.books.count_documents({})
+
     result = {
         "total": total,
         "data": json.loads(dumps(books))
@@ -66,8 +69,9 @@ def query_by_id(book_id):
 @cross_origin()
 def create_book():
     """创建图书"""
-    book = request.get_data()
-    mongo.db.books.insert_one(json.loads(book))
+    book = json.loads(request.get_data())
+    book['createTime'] = time.time()
+    mongo.db.books.insert_one(book)
     return jsonify({
         "code": 0,
         "success": True,

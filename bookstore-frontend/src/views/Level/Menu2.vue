@@ -14,10 +14,12 @@
         <el-input v-model="queryForm.author" clearable />
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" @click="queryBook">查询</el-button>
+        <el-button type="primary" @click="queryBook(1)">查询</el-button>
       </el-form-item>
     </el-form>
-    <el-button type="primary" @click="openBookForm(undefined, formRef)">创建</el-button>
+    <div style="margin-bottom: 10px">
+      <el-button type="primary" @click="openBookForm(undefined, formRef)">创建</el-button>
+    </div>
     <el-table :data="books" stripe style="width: 100%">
       <el-table-column prop="bookName" label="书名" />
       <el-table-column prop="edition" label="版次" />
@@ -224,8 +226,8 @@ const state = reactive({
 const { books } = toRefs(state)
 
 const currentPage = ref(1)
-const pageSize = ref(1)
-const total = ref(2)
+const pageSize = ref(10)
+const total = ref(0)
 
 // 查询条件对象
 const queryForm = reactive({
@@ -345,7 +347,7 @@ const saveBook = (formEl: FormInstance | undefined) => {
         })
         resetForm(formEl)
         closeBookForm()
-        queryBook()
+        queryBook(1)
       }
     })
   } else {
@@ -357,7 +359,7 @@ const saveBook = (formEl: FormInstance | undefined) => {
           type: 'success'
         })
         closeBookForm()
-        queryBook()
+        queryBook(1)
       }
     })
   }
@@ -372,7 +374,7 @@ const removeBook = (id: string) => {
         message: '删除图书成功',
         type: 'success'
       })
-      queryBook()
+      queryBook(1)
     }
   })
 }
