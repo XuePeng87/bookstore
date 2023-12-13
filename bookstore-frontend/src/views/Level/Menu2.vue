@@ -17,7 +17,7 @@
         <el-button type="primary" @click="queryBook">查询</el-button>
       </el-form-item>
     </el-form>
-    <el-button type="primary" @click="createBook">创建</el-button>
+    <el-button type="primary" @click="openBookForm(undefined, formRef)">创建</el-button>
     <el-table :data="books" stripe style="width: 100%">
       <el-table-column prop="bookName" label="书名" />
       <el-table-column prop="edition" label="版次" />
@@ -41,10 +41,22 @@
         </template>
       </el-table-column>
       <el-table-column fixed="right" label="操作" width="240">
-        <template #default>
-          <el-button link type="primary">详情</el-button>
-          <el-button link type="primary">修改</el-button>
-          <el-button link type="primary">删除</el-button>
+        <template #default="scope">
+          <el-button link type="primary" @click="openBookForm(scope.row._id, undefined)"
+            >修改</el-button
+          >
+          <el-popover :visible="visible" placement="top" :width="160">
+            <p>确认要删除吗?</p>
+            <div style="text-align: right; margin: 0">
+              <el-button size="small" text @click="visible = false">cancel</el-button>
+              <el-button size="small" type="primary" @click="removeBook(scope.row._id)"
+                >confirm</el-button
+              >
+            </div>
+            <template #reference>
+              <el-button link type="primary" @click="visible = true">删除</el-button>
+            </template>
+          </el-popover>
         </template>
       </el-table-column>
     </el-table>
@@ -52,7 +64,9 @@
       <el-pagination
         background
         layout="prev, pager, next"
-        :total="100"
+        :current-page="currentPage"
+        :page-size="pageSize"
+        :total="total"
         @current-change="queryBook"
       />
     </div>
@@ -66,16 +80,16 @@
   >
     <template #header="{ close }">
       <div style="padding-top: 10px; padding-right: 15px; text-align: right">
-        <el-button type="primary">保存</el-button>
-        <el-button>重置</el-button>
+        <el-button type="primary" @click="saveBook(formRef)">保存</el-button>
+        <el-button @click="resetForm(formRef)">重置</el-button>
         <el-button type="danger" @click="close">关闭</el-button>
       </div>
     </template>
-    <el-form :model="bookForm" label-width="120px" status-icon>
+    <el-form ref="formRef" :model="bookForm" label-width="120px" status-icon>
       <el-row :gutter="20">
         <el-col :span="12">
           <el-form-item label="ISBN" prop="isbn">
-            <el-input v-model="bookForm.isbn" :prefix-icon="Search" @keyup.enter="isbn" />
+            <el-input v-model="bookForm.isbn" :prefix-icon="Search" @keyup.enter="isbn" clearable />
           </el-form-item>
         </el-col>
         <el-col :span="12">
@@ -191,6 +205,7 @@
 import { ContentWrap } from '@/components/ContentWrap'
 import { useI18n } from '@/hooks/web/useI18n'
 import { onMounted, reactive, toRefs, ref } from 'vue'
+import { ElMessage, FormInstance } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import { queryByISBN, query, queryById, create, update, remove } from '@/api/book'
 
@@ -198,10 +213,21 @@ defineOptions({
   name: 'Menu2'
 })
 
+// 国际化
 const { t } = useI18n()
 
-const dialogFormVisible = ref(false)
+// 列表对象
+const state = reactive({
+  books: []
+})
 
+const { books } = toRefs(state)
+
+const currentPage = ref(1)
+const pageSize = ref(1)
+const total = ref(2)
+
+// 查询条件对象
 const queryForm = reactive({
   bookName: '',
   clcName: '',
@@ -209,13 +235,21 @@ const queryForm = reactive({
   page: 1
 })
 
+const visible = ref(false)
+
+// 表单是否显示
+const dialogFormVisible = ref(false)
+
+let bookId = ''
+
+// 表单对象
 interface Book {
   author: string
   binding: string
   bookDesc: string
   bookName: string
   clcCode: string
-  clcName: string
+  clcName: any
   edition: string
   format: string
   isbn: string
@@ -251,40 +285,112 @@ const bookForm = reactive<Book>({
   readOver: false
 })
 
-const state = reactive({
-  books: []
-})
-
-const { books } = toRefs(state)
-
-const inputRef = ref<Nullable<any>>(null)
-
+// 页面初始化事件
 onMounted(() => {
-  // queryByISBN('9787020024759')
-  query({}).then((r) => {
-    state.books = r.data
-  })
-  // queryById('656ee18a77548c3097e837f2')
-  // create({ name: 'java' })
-  // update('656ee5db77548c3097e837f6', { name: 'python' })
-  // remove('656ee54f77548c3097e837f4')
+  queryBook(1)
 })
 
+// 查询图书列表
+const queryBook = (p: number) => {
+  currentPage.value = p
+  queryForm.page = p
+  query(queryForm).then((r) => {
+    if (r) {
+      state.books = r.data.data
+      total.value = r.data.total
+    }
+  })
+}
+
+// 打开表单
+const openBookForm = (id: string | undefined, formEl: FormInstance | undefined) => {
+  dialogFormVisible.value = true
+  if (id) {
+    findBookById(id)
+    bookId = id
+  } else {
+    bookId = ''
+    resetForm(formEl)
+  }
+}
+
+// 关闭表单
+const closeBookForm = () => {
+  dialogFormVisible.value = false
+}
+
+const formRef = ref<FormInstance>()
+
+// 根据isbn查询图书
 const isbn = () => {
   queryByISBN(bookForm.isbn).then((r) => {
     if (r) {
       r.data.price = (r.data.price / 100).toFixed(2)
       r.data.pictures = eval(r.data.pictures)
       Object.assign(bookForm, r.data)
-      console.info('bookForm', bookForm)
     }
   })
 }
 
-const queryBook = () => {}
+// 保存图书
+const saveBook = (formEl: FormInstance | undefined) => {
+  let book = { ...bookForm }
+  book.clcName = book.clcName.split('、')
+  if (!bookId) {
+    create(book).then((r) => {
+      if (r) {
+        ElMessage({
+          message: '创建图书成功',
+          type: 'success'
+        })
+        resetForm(formEl)
+        closeBookForm()
+        queryBook()
+      }
+    })
+  } else {
+    delete book['_id']
+    update(bookId, book).then((r) => {
+      if (r) {
+        ElMessage({
+          message: '修改图书成功',
+          type: 'success'
+        })
+        closeBookForm()
+        queryBook()
+      }
+    })
+  }
+}
 
-const createBook = () => {
-  dialogFormVisible.value = true
+// 删除图书
+const removeBook = (id: string) => {
+  visible.value = false
+  remove(id).then((r) => {
+    if (r) {
+      ElMessage({
+        message: '删除图书成功',
+        type: 'success'
+      })
+      queryBook()
+    }
+  })
+}
+
+// 根据主键查询图书
+const findBookById = (id: string) => {
+  queryById(id).then((r) => {
+    if (r) {
+      r.data.clcName = r.data.clcName.join('、')
+      Object.assign(bookForm, r.data)
+    }
+  })
+}
+
+const resetForm = (formEl: FormInstance | undefined) => {
+  if (!formEl) return
+  formEl.resetFields()
+  bookForm.pictures = []
 }
 </script>
 

@@ -19,7 +19,8 @@ import {
   ElDialog,
   ElRow,
   ElCol,
-  ElDivider
+  ElDivider,
+  ElPopover
 } from 'element-plus'
 
 const plugins = [ElLoading]
@@ -42,7 +43,8 @@ const ui = [
   ElDialog,
   ElRow,
   ElCol,
-  ElDivider
+  ElDivider,
+  ElPopover
 ]
 
 export const setupElementPlus = (app: App<Element>) => {

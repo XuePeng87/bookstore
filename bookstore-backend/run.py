@@ -10,7 +10,7 @@ app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False  # 禁止中文转义
 app.config['MONGO_URI'] = 'mongodb://booker:123456@127.0.0.1:27017/bookstore?authMechanism=DEFAULT'
 mongo = PyMongo(app)
-APP_KEY = 'ae1718d4587744b0b79f940fbef69e77'
+APP_KEY = 'e3ef05d3a2ea405c906c7d67b0ff9386'
 
 
 @app.route("/query/<isbn>", methods=["GET"])
@@ -29,16 +29,22 @@ def query():
     """根据条件查询图书"""
     request_args = request.args.to_dict()
     print(request_args)
-    cursor = mongo.db.books.find()
+    page = int(request_args['page'])
+    cursor = mongo.db.books.find().skip(page-1).limit(1)
     books = []
     for document in cursor:
         document['_id'] = str(document['_id'])
         books.append(document)
+    total = mongo.db.books.count_documents({})
+    result = {
+        "total": total,
+        "data": json.loads(dumps(books))
+    }
     return jsonify({
         "code": 0,
         "success": True,
         "msg": "",
-        "data": json.loads(dumps(books))
+        "data": result
     })
 
 

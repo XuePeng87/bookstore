@@ -52,7 +52,7 @@ const setupAll = async () => {
       return value ? '是' : '否'
     },
     currencyRMB(value: number) {
-      return '¥' + (value / 100).toFixed(2)
+      return '¥' + value
     }
   }
 }
