@@ -5,9 +5,13 @@
         <el-input v-model="queryForm.bookName" clearable />
       </el-form-item>
       <el-form-item label="类型">
-        <el-select v-model="queryForm.clcName" clearable>
-          <el-option label="Zone one" value="shanghai" />
-          <el-option label="Zone two" value="beijing" />
+        <el-select v-model="queryForm.clcName" clearable multiple>
+          <el-option v-for="clc in clcs" :key="clc" :label="clc" :value="clc" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="类型">
+        <el-select v-model="queryForm.tags" clearable multiple>
+          <el-option v-for="tag in tags" :key="tag" :label="tag" :value="tag" />
         </el-select>
       </el-form-item>
       <el-form-item label="作者">
@@ -100,9 +104,47 @@
           </el-form-item>
         </el-col>
       </el-row>
-      <el-form-item label="简介" prop="bookDesc">
-        <el-input v-model="bookForm.bookDesc" type="textarea" :rows="10" />
-      </el-form-item>
+      <el-row :gutter="20">
+        <el-col :span="12">
+          <el-form-item label="简介" prop="bookDesc">
+            <el-input v-model="bookForm.bookDesc" type="textarea" :rows="13" />
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="封面">
+            <div v-for="pic in bookForm.pictures" :key="pic">
+              <el-image style="width: 200px; height: 283px" content="no-referrer" :src="pic" />
+            </div>
+          </el-form-item>
+        </el-col>
+      </el-row>
+      <el-row :gutter="20">
+        <el-col :span="24">
+          <el-form-item label="标签">
+            <el-tag
+              v-for="tag in bookForm.tags"
+              :key="tag"
+              closable
+              :disable-transitions="false"
+              style="margin-left: 10px"
+              @close="handleClose(tag)"
+            >
+              {{ tag }}
+            </el-tag>
+            <el-input
+              style="margin-left: 10px; width: 100px"
+              v-if="inputVisible"
+              v-model="inputValue"
+              size="small"
+              @keyup.enter="handleInputConfirm"
+              @blur="handleInputConfirm"
+            />
+            <el-button v-else size="small" style="margin-left: 10px" @click="showInput"
+              >添加</el-button
+            >
+          </el-form-item>
+        </el-col>
+      </el-row>
       <el-row :gutter="20">
         <el-col :span="12">
           <el-form-item label="类型编号" prop="clcCode">
@@ -191,14 +233,6 @@
           </el-form-item>
         </el-col>
       </el-row>
-      <el-row :gutter="24">
-        <el-col :span="4" />
-        <el-col :span="20">
-          <div v-for="pic in bookForm.pictures" :key="pic">
-            <el-image style="width: 100px; height: 150px" :src="pic" />
-          </div>
-        </el-col>
-      </el-row>
     </el-form>
   </el-dialog>
 </template>
@@ -209,7 +243,16 @@ import { useI18n } from '@/hooks/web/useI18n'
 import { onMounted, reactive, toRefs, ref } from 'vue'
 import { ElMessage, FormInstance } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
-import { queryByISBN, query, queryById, create, update, remove } from '@/api/book'
+import {
+  queryByISBN,
+  query,
+  queryById,
+  create,
+  update,
+  remove,
+  queryClcs,
+  queryTags
+} from '@/api/book'
 
 defineOptions({
   name: 'Menu2'
@@ -220,10 +263,14 @@ const { t } = useI18n()
 
 // 列表对象
 const state = reactive({
-  books: []
+  books: [],
+  clcs: [],
+  tags: []
 })
 
 const { books } = toRefs(state)
+const { clcs } = toRefs(state)
+const { tags } = toRefs(state)
 
 const currentPage = ref(1)
 const pageSize = ref(10)
@@ -232,7 +279,8 @@ const total = ref(0)
 // 查询条件对象
 const queryForm = reactive({
   bookName: '',
-  clcName: '',
+  clcName: [],
+  tags: [],
   author: '',
   page: 1
 })
@@ -241,6 +289,12 @@ const visible = ref(false)
 
 // 表单是否显示
 const dialogFormVisible = ref(false)
+
+// 标签输入框
+const inputVisible = ref(false)
+
+// 标签
+const inputValue = ref('')
 
 let bookId = ''
 
@@ -264,6 +318,7 @@ interface Book {
   price: number
   words: string
   readOver: boolean
+  tags: string[]
 }
 
 const bookForm = reactive<Book>({
@@ -284,13 +339,34 @@ const bookForm = reactive<Book>({
   pressPlace: '',
   price: 0.0,
   words: '',
-  readOver: false
+  readOver: false,
+  tags: []
 })
 
 // 页面初始化事件
 onMounted(() => {
+  findTypes()
+  findTags()
   queryBook(1)
 })
+
+// 查询图书分类
+const findTypes = () => {
+  queryClcs().then((r) => {
+    if (r) {
+      state.clcs = r.data
+    }
+  })
+}
+
+// 查询图书标签
+const findTags = () => {
+  queryTags().then((r) => {
+    if (r) {
+      state.tags = r.data
+    }
+  })
+}
 
 // 查询图书列表
 const queryBook = (p: number) => {
@@ -304,7 +380,33 @@ const queryBook = (p: number) => {
   })
 }
 
+// 删除图书
+const removeBook = (id: string) => {
+  visible.value = false
+  remove(id).then((r) => {
+    if (r) {
+      ElMessage({
+        message: '删除图书成功',
+        type: 'success'
+      })
+      queryBook(1)
+    }
+  })
+}
+
+// 根据主键查询图书
+const findBookById = (id: string) => {
+  queryById(id).then((r) => {
+    if (r) {
+      r.data.clcName = r.data.clcName.join('、')
+      Object.assign(bookForm, r.data)
+    }
+  })
+}
+
 // 打开表单
+const formRef = ref<FormInstance>()
+
 const openBookForm = (id: string | undefined, formEl: FormInstance | undefined) => {
   dialogFormVisible.value = true
   if (id) {
@@ -316,12 +418,27 @@ const openBookForm = (id: string | undefined, formEl: FormInstance | undefined) 
   }
 }
 
+// 标签处理
+const showInput = () => {
+  inputVisible.value = true
+}
+
+const handleInputConfirm = () => {
+  if (inputValue.value) {
+    bookForm.tags.push(inputValue.value)
+  }
+  inputVisible.value = false
+  inputValue.value = ''
+}
+
+const handleClose = (tag: string) => {
+  bookForm.tags.splice(bookForm.tags.indexOf(tag), 1)
+}
+
 // 关闭表单
 const closeBookForm = () => {
   dialogFormVisible.value = false
 }
-
-const formRef = ref<FormInstance>()
 
 // 根据isbn查询图书
 const isbn = () => {
@@ -365,30 +482,7 @@ const saveBook = (formEl: FormInstance | undefined) => {
   }
 }
 
-// 删除图书
-const removeBook = (id: string) => {
-  visible.value = false
-  remove(id).then((r) => {
-    if (r) {
-      ElMessage({
-        message: '删除图书成功',
-        type: 'success'
-      })
-      queryBook(1)
-    }
-  })
-}
-
-// 根据主键查询图书
-const findBookById = (id: string) => {
-  queryById(id).then((r) => {
-    if (r) {
-      r.data.clcName = r.data.clcName.join('、')
-      Object.assign(bookForm, r.data)
-    }
-  })
-}
-
+// 重置表单
 const resetForm = (formEl: FormInstance | undefined) => {
   if (!formEl) return
   formEl.resetFields()

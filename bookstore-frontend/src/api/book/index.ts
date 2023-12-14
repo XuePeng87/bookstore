@@ -23,3 +23,11 @@ export const update = (id: string, data: any): Promise<IResponse> => {
 export const remove = (id: string): Promise<IResponse> => {
   return request.delete({ url: 'http://127.0.0.1:8000/books/' + id })
 }
+
+export const queryClcs = (): Promise<IResponse> => {
+  return request.get({ url: 'http://127.0.0.1:8000/types' })
+}
+
+export const queryTags = (): Promise<IResponse> => {
+  return request.get({ url: 'http://127.0.0.1:8000/tags' })
+}

@@ -8,6 +8,7 @@ from bson.json_util import dumps
 import requests
 import json
 import time
+import re
 
 app = Flask(__name__)
 app.config['JSON_AS_ASCII'] = False  # 禁止中文转义
@@ -26,14 +27,65 @@ def query_by_isbn(isbn):
     return result.json()
 
 
+@app.route("/types", methods=["GET"])
+@cross_origin()
+def clc_query():
+    """查询所有分类"""
+    cursor = mongo.db.books.aggregate([
+        {'$unwind': '$clcName'},
+        {'$group': {'_id': '$clcName'}},
+        {'$project': {'_id': 0, 'clcName': "$_id"}}
+    ])
+    result = []
+    for document in cursor:
+        result.append(document['clcName'])
+    return jsonify({
+        "code": 0,
+        "success": True,
+        "msg": "",
+        "data": json.loads(dumps(result))
+    })
+
+
+@app.route("/tags", methods=["GET"])
+@cross_origin()
+def tag_query():
+    """查询标签"""
+    cursor = mongo.db.books.aggregate([
+        {'$unwind': '$tags'},
+        {'$group': {'_id': '$tags'}},
+        {'$project': {'_id': 0, 'tags': "$_id"}}
+    ])
+    result = []
+    for document in cursor:
+        result.append(document['tags'])
+    return jsonify({
+        "code": 0,
+        "success": True,
+        "msg": "",
+        "data": json.loads(dumps(result))
+    })
+
+
 @app.route("/books", methods=["GET"])
 @cross_origin()
 def query():
     """根据条件查询图书"""
     request_args = request.args.to_dict()
+    params = {}
+    if request_args['bookName'] != '':
+        params['bookName'] = re.compile(request_args['bookName'])
+    if request_args['clcName'] != '':
+        params['clcName'] = {'$in': request_args['clcName'].split(',')}
+    if request_args['tags'] != '':
+        params['tags'] = {'$in': request_args['tags'].split(',')}
+    if request_args['author'] != '':
+        params['author'] = re.compile(request_args['author'])
     total = mongo.db.books.count_documents({})
     page = int(request_args['page'])
-    cursor = mongo.db.books.find().skip(10 * (page-1)).limit(10).sort('createTime', -1)
+    print(request_args)
+    print(params)
+    cursor = mongo.db.books.find(params).skip(10 * (page - 1)).limit(10).sort('createTime', -1)
     books = []
     for document in cursor:
         document['_id'] = str(document['_id'])
